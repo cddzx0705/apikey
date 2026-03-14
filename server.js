@@ -42,12 +42,8 @@ app.get("/", (req,res)=>{
 
 app.post("/createKey",(req,res)=>{
 
-  const body = req.body || {};
-
-  const days = Number(body.days ?? 1);
-  const maxDevice = Number(body.maxDevice ?? 1);
-
-  console.log("CREATE KEY BODY:", body);
+  const days = parseInt(req.body.days);
+  const maxDevice = parseInt(req.body.maxDevice);
 
   const key = "CDDZ-" + Math.random().toString(36).substring(2,10).toUpperCase();
 
@@ -56,6 +52,7 @@ app.post("/createKey",(req,res)=>{
   data.keys.push({
     key: key,
     expire: expire,
+    days: days,
     maxDevice: maxDevice,
     devices: [],
     toggles: {}
@@ -66,11 +63,12 @@ app.post("/createKey",(req,res)=>{
   res.json({
     success: true,
     key: key,
-    expire: new Date(expire).toISOString(),
+    days: days,
     maxDevice: maxDevice
   });
 
 });
+
 
 /* ================= CHECK KEY ================= */
 
