@@ -3,44 +3,41 @@ const fs = require("fs");
 const cors = require("cors");
 
 const app = express();
+const DB = "./keys.json";
 
-// Phải có 2 dòng này trên cùng để đọc được dữ liệu bạn gửi từ Hoppscotch
+// Cấu hình Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-const DB = "./keys.json";
-
-/* ================= LOAD DATABASE ================= */
+/* --- LOAD/SAVE DATABASE --- */
 let data = { keys: [] };
-if (fs.existsSync(DB)) {
-    try {
-        const rawData = fs.readFileSync(DB);
-        data = JSON.parse(rawData);
-    } catch (e) {
-        data = { keys: [] };
+const loadDB = () => {
+    if (fs.existsSync(DB)) {
+        try {
+            data = JSON.parse(fs.readFileSync(DB));
+        } catch (e) {
+            data = { keys: [] };
+        }
     }
-}
+};
+const saveDB = () => fs.writeFileSync(DB, JSON.stringify(data, null, 2));
 
-function saveDB() {
-    fs.writeFileSync(DB, JSON.stringify(data, null, 2));
-}
+loadDB();
 
-/* ================= TEST ROUTE ================= */
+/* --- ROUTES --- */
+
 app.get("/", (req, res) => {
-    res.send("KEY API IS ONLINE");
+    res.send("API KEY ĐANG CHẠY - PHIÊN BẢN MỚI NHẤT");
 });
 
-/* ================= CREATE KEY ================= */
+// 1. Tạo Key
 app.post("/createKey", (req, res) => {
-    // Lấy giá trị và ép kiểu về số (Number)
-    const days = Number(req.body.days) || 1;
-    const maxDevice = Number(req.body.maxDevice) || 1;
+    const days = parseInt(req.body.days) || 1;
+    const maxDevice = parseInt(req.body.maxDevice) || 1;
 
     const key = "CDDZ-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-    
-    // Tính toán thời gian hết hạn (ms)
-    const expire = Date.now() + (days * 24 * 60 * 60 * 1000);
+    const expire = Date.now() + (days * 86400000);
 
     const newKey = {
         key: key,
@@ -56,82 +53,51 @@ app.post("/createKey", (req, res) => {
     res.json({
         success: true,
         key: key,
-        days: days,
-        maxDevice: maxDevice,
-        expire: new Date(expire).toLocaleString("vi-VN")
+        days_set: days,
+        max_device_set: maxDevice,
+        expire_date: new Date(expire).toLocaleString("vi-VN")
     });
 });
 
-/* ================= CHECK KEY ================= */
+// 2. Kiểm tra Key (Login)
 app.post("/checkKey", (req, res) => {
     const { key, deviceId } = req.body;
-
-    if (!key || !deviceId) {
-        return res.json({ success: false, message: "Thiếu Key hoặc DeviceID" });
-    }
-
     const k = data.keys.find(x => x.key === key);
 
-    if (!k) {
-        return res.json({ success: false, message: "Key không tồn tại" });
-    }
+    if (!k) return res.json({ success: false, message: "Key không hợp lệ" });
+    if (Date.now() > k.expire) return res.json({ success: false, message: "Key hết hạn" });
 
-    if (Date.now() > k.expire) {
-        return res.json({ success: false, message: "Key đã hết hạn" });
-    }
-
-    // Quản lý thiết bị
     if (!k.devices.includes(deviceId)) {
         if (k.devices.length >= k.maxDevice) {
-            return res.json({ success: false, message: "Đã đạt giới hạn thiết bị" });
+            return res.json({ success: false, message: "Đã hết lượt đăng ký thiết bị" });
         }
         k.devices.push(deviceId);
         saveDB();
     }
 
-    const daysLeft = Math.ceil((k.expire - Date.now()) / (24 * 60 * 60 * 1000));
-
-    res.json({
-        success: true,
-        daysLeft: daysLeft,
-        toggles: k.toggles || {}
-    });
+    const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
+    res.json({ success: true, daysLeft, toggles: k.toggles || {} });
 });
 
-/* ================= SAVE TOGGLE ================= */
+// 3. Quản lý Toggle (Lưu trạng thái bật/tắt tính năng)
 app.post("/saveToggle", (req, res) => {
     const { key, toggle, value } = req.body;
-
     const k = data.keys.find(x => x.key === key);
-    if (!k) return res.json({ success: false, message: "Key không hợp lệ" });
+    if (!k) return res.json({ success: false });
 
     if (!k.toggles) k.toggles = {};
     k.toggles[toggle] = value;
-    
     saveDB();
     res.json({ success: true });
 });
 
-/* ================= GET TOGGLE ================= */
-app.get("/getToggle", (req, res) => {
-    const key = req.query.key;
-    const k = data.keys.find(x => x.key === key);
-    
-    if (!k) return res.json({ success: false });
-
-    res.json({
-        success: true,
-        toggles: k.toggles || {}
-    });
-});
-
-/* ================= LIST ALL KEYS ================= */
+// 4. Lấy danh sách Key (Dùng để kiểm tra Admin)
 app.get("/keys", (req, res) => {
     res.json(data.keys);
 });
 
-/* ================= START SERVER ================= */
-const PORT = process.env.PORT || 3000;
+/* --- START SERVER --- */
+const PORT = process.env.PORT || 8080; 
 app.listen(PORT, () => {
-    console.log(`Server đang chạy tại port: ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
