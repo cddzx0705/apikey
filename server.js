@@ -37,12 +37,13 @@ app.post("/createKey",(req,res)=>{
 
   const expire = Date.now() + (days * 86400000);
 
-  data.keys.push({
-    key:key,
-    expire:expire,
-    maxDevice:maxDevice,
-    devices:[]
-  });
+data.keys.push({
+  key:key,
+  expire:expire,
+  maxDevice:maxDevice,
+  devices:[],
+  toggles:{}   
+});
 
   saveDB();
 
@@ -124,4 +125,29 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT,()=>{
   console.log("KEY API RUNNING");
+});
+/* SAVE TOGGLE */
+app.post("/saveToggle",(req,res)=>{
+  const {key,toggle,value} = req.body;
+
+  const k = data.keys.find(x=>x.key===key);
+  if(!k) return res.json({success:false});
+
+  k.toggles[toggle]=value;
+  saveDB();
+
+  res.json({success:true});
+});
+
+/* GET TOGGLE */
+app.get("/getToggle",(req,res)=>{
+  const key=req.query.key;
+
+  const k=data.keys.find(x=>x.key===key);
+  if(!k) return res.json({success:false});
+
+  res.json({
+    success:true,
+    toggles:k.toggles || {}
+  });
 });
