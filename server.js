@@ -33,7 +33,7 @@ app.post("/createKey",(req,res)=>{
   const days = req.body.days || 1;
   const maxDevice = req.body.maxDevice || 1;
 
-  const key = "KEY-" + Math.random().toString(36).substring(2,10).toUpperCase();
+  const key = "CDDZ-" + Math.random().toString(36).substring(2,10).toUpperCase();
 
   const expire = Date.now() + (days * 86400000);
 
