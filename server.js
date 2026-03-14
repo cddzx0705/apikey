@@ -83,10 +83,33 @@ app.post("/checkKey",(req,res)=>{
 const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
 
 res.json({
-  success:true,
-  daysLeft:daysLeft
+success:true,
+daysLeft:daysLeft,
+features:k.features || {}
 });
+/* ================= SAVE TOGGLE ================= */
 
+app.post("/saveToggle",(req,res)=>{
+
+const { key, feature, state } = req.body;
+
+const k = data.keys.find(x=>x.key===key);
+
+if(!k){
+return res.json({success:false});
+}
+
+if(!k.features){
+k.features={};
+}
+
+k.features[feature]=state;
+
+saveDB();
+
+res.json({success:true});
+
+});
 });
 
 /* ================= LIST KEYS ================= */
