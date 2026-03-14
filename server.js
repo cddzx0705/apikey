@@ -16,89 +16,89 @@ if (fs.existsSync(DB)) {
   data = JSON.parse(fs.readFileSync(DB));
 }
 
-function saveDB() {
-  fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+function saveDB(){
+  fs.writeFileSync(DB, JSON.stringify(data,null,2));
 }
 
-/* TEST SERVER */
+/* TEST */
 
-app.get("/", (req, res) => {
+app.get("/", (req,res)=>{
   res.send("KEY API RUNNING");
 });
 
-/* =========================
-   CREATE KEY
-========================= */
+/* ================= CREATE KEY ================= */
 
-app.post("/createKey", (req, res) => {
+app.post("/createKey",(req,res)=>{
 
-  const { days, maxDevice } = req.body;
+  const days = req.body.days || 1;
+  const maxDevice = req.body.maxDevice || 1;
 
   const key = "KEY-" + Math.random().toString(36).substring(2,10).toUpperCase();
 
   const expire = Date.now() + (days * 86400000);
 
   data.keys.push({
-    key: key,
-    expire: expire,
-    maxDevice: maxDevice,
-    devices: []
+    key:key,
+    expire:expire,
+    maxDevice:maxDevice,
+    devices:[]
   });
 
   saveDB();
 
   res.json({
-    success: true,
-    key: key,
-    expire: expire
+    success:true,
+    key:key,
+    expire:new Date(expire).toISOString()
   });
 
 });
 
-/* =========================
-   CHECK KEY
-========================= */
+/* ================= CHECK KEY ================= */
 
-app.post("/checkKey", (req,res)=>{
+app.post("/checkKey",(req,res)=>{
 
-  const { key, deviceId } = req.body;
+  const {key,deviceId} = req.body;
 
-  const k = data.keys.find(x => x.key === key);
+  const k = data.keys.find(x=>x.key === key);
 
   if(!k){
-    return res.json({ success:false, message:"Invalid key" });
+    return res.json({success:false,message:"Invalid key"});
   }
 
   if(Date.now() > k.expire){
-    return res.json({ success:false, message:"Key expired" });
+    return res.json({success:false,message:"Key expired"});
   }
 
   if(!k.devices.includes(deviceId)){
 
     if(k.devices.length >= k.maxDevice){
-      return res.json({ success:false, message:"Device limit reached" });
+      return res.json({success:false,message:"Device limit reached"});
     }
 
     k.devices.push(deviceId);
     saveDB();
   }
 
-  res.json({ success:true });
+  res.json({
+    success:true,
+    expire:new Date(k.expire).toISOString(),
+    devices:k.devices.length,
+    maxDevice:k.maxDevice
+  });
 
 });
 
-/* =========================
-   LIST KEYS
-========================= */
+/* ================= LIST KEYS ================= */
 
 app.get("/keys",(req,res)=>{
   res.json(data.keys);
 });
 
-/* START SERVER */
+/* START */
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT,()=>{
   console.log("KEY API RUNNING");
 });
