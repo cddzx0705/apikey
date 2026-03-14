@@ -37,20 +37,21 @@ app.post("/createKey",(req,res)=>{
 
   const expire = Date.now() + (days * 86400000);
 
-data.keys.push({
-  key:key,
-  expire:expire,
-  maxDevice:maxDevice,
-  devices:[],
-  toggles:{}   
-});
+  data.keys.push({
+    key:key,
+    expire:expire,
+    maxDevice:maxDevice,
+    devices:[],
+    toggles:{}
+  });
 
   saveDB();
 
   res.json({
     success:true,
     key:key,
-    expire:new Date(expire).toISOString()
+    expire:new Date(expire).toISOString(),
+    maxDevice:maxDevice
   });
 
 });
@@ -60,6 +61,13 @@ data.keys.push({
 app.post("/checkKey",(req,res)=>{
 
   const {key,deviceId} = req.body;
+
+  if(!deviceId){
+    return res.json({
+      success:false,
+      message:"Device ID missing"
+    });
+  }
 
   const k = data.keys.find(x=>x.key === key);
 
@@ -81,36 +89,57 @@ app.post("/checkKey",(req,res)=>{
     saveDB();
   }
 
-const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
+  const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
 
-res.json({
-success:true,
-daysLeft:daysLeft,
-features:k.features || {}
+  res.json({
+    success:true,
+    daysLeft:daysLeft,
+    toggles:k.toggles || {}
+  });
+
 });
+
 /* ================= SAVE TOGGLE ================= */
 
 app.post("/saveToggle",(req,res)=>{
 
-const { key, feature, state } = req.body;
+  const {key,toggle,value} = req.body;
 
-const k = data.keys.find(x=>x.key===key);
+  const k = data.keys.find(x=>x.key===key);
 
-if(!k){
-return res.json({success:false});
-}
+  if(!k){
+    return res.json({success:false});
+  }
 
-if(!k.features){
-k.features={};
-}
+  if(!k.toggles){
+    k.toggles={};
+  }
 
-k.features[feature]=state;
+  k.toggles[toggle]=value;
 
-saveDB();
+  saveDB();
 
-res.json({success:true});
+  res.json({success:true});
 
 });
+
+/* ================= GET TOGGLE ================= */
+
+app.get("/getToggle",(req,res)=>{
+
+  const key=req.query.key;
+
+  const k=data.keys.find(x=>x.key===key);
+
+  if(!k){
+    return res.json({success:false});
+  }
+
+  res.json({
+    success:true,
+    toggles:k.toggles || {}
+  });
+
 });
 
 /* ================= LIST KEYS ================= */
@@ -125,29 +154,4 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT,()=>{
   console.log("KEY API RUNNING");
-});
-/* SAVE TOGGLE */
-app.post("/saveToggle",(req,res)=>{
-  const {key,toggle,value} = req.body;
-
-  const k = data.keys.find(x=>x.key===key);
-  if(!k) return res.json({success:false});
-
-  k.toggles[toggle]=value;
-  saveDB();
-
-  res.json({success:true});
-});
-
-/* GET TOGGLE */
-app.get("/getToggle",(req,res)=>{
-  const key=req.query.key;
-
-  const k=data.keys.find(x=>x.key===key);
-  if(!k) return res.json({success:false});
-
-  res.json({
-    success:true,
-    toggles:k.toggles || {}
-  });
 });
