@@ -3,38 +3,36 @@ const fs = require("fs");
 const cors = require("cors");
 
 const app = express();
-const DB = "./keys.json";
-
-// Cấu hình Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-/* --- LOAD/SAVE DATABASE --- */
+const DB = "./keys.json";
+
+/* ================= LOAD DATABASE ================= */
 let data = { keys: [] };
-const loadDB = () => {
-    if (fs.existsSync(DB)) {
-        try {
-            data = JSON.parse(fs.readFileSync(DB));
-        } catch (e) {
-            data = { keys: [] };
-        }
+
+if (fs.existsSync(DB)) {
+    try {
+        data = JSON.parse(fs.readFileSync(DB));
+    } catch (e) {
+        data = { keys: [] };
     }
-};
-const saveDB = () => fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+}
 
-loadDB();
+function saveDB() {
+    fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+}
 
-/* --- ROUTES --- */
-
+/* ================= TEST ================= */
 app.get("/", (req, res) => {
-    res.send("API KEY ĐANG CHẠY - PHIÊN BẢN MỚI NHẤT");
+    res.send("KEY API RUNNING - PHIÊN BẢN ĐÃ FIX");
 });
 
-// 1. Tạo Key
+/* ================= CREATE KEY ================= */
 app.post("/createKey", (req, res) => {
-    const days = parseInt(req.body.days) || 1;
-    const maxDevice = parseInt(req.body.maxDevice) || 1;
+    // Lấy từ body hoặc query, ép kiểu về số (Number)
+    const days = Number(req.body.days || req.query.days) || 1;
+    const maxDevice = Number(req.body.maxDevice || req.query.maxDevice) || 1;
 
     const key = "CDDZ-" + Math.random().toString(36).substring(2, 10).toUpperCase();
     const expire = Date.now() + (days * 86400000);
@@ -53,51 +51,75 @@ app.post("/createKey", (req, res) => {
     res.json({
         success: true,
         key: key,
-        days_set: days,
-        max_device_set: maxDevice,
-        expire_date: new Date(expire).toLocaleString("vi-VN")
+        days_set: days, // Trả về để bạn kiểm tra xem đã nhận đúng chưa
+        maxDevice_set: maxDevice,
+        expire: new Date(expire).toISOString()
     });
 });
 
-// 2. Kiểm tra Key (Login)
+/* ================= CHECK KEY ================= */
 app.post("/checkKey", (req, res) => {
     const { key, deviceId } = req.body;
     const k = data.keys.find(x => x.key === key);
 
-    if (!k) return res.json({ success: false, message: "Key không hợp lệ" });
-    if (Date.now() > k.expire) return res.json({ success: false, message: "Key hết hạn" });
+    if (!k) {
+        return res.json({ success: false, message: "Invalid key" });
+    }
+
+    if (Date.now() > k.expire) {
+        return res.json({ success: false, message: "Key expired" });
+    }
 
     if (!k.devices.includes(deviceId)) {
         if (k.devices.length >= k.maxDevice) {
-            return res.json({ success: false, message: "Đã hết lượt đăng ký thiết bị" });
+            return res.json({ success: false, message: "Device limit reached" });
         }
         k.devices.push(deviceId);
         saveDB();
     }
 
     const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
-    res.json({ success: true, daysLeft, toggles: k.toggles || {} });
+    res.json({
+        success: true,
+        daysLeft: daysLeft,
+        toggles: k.toggles || {}
+    });
 });
 
-// 3. Quản lý Toggle (Lưu trạng thái bật/tắt tính năng)
+/* ================= SAVE TOGGLE ================= */
 app.post("/saveToggle", (req, res) => {
     const { key, toggle, value } = req.body;
     const k = data.keys.find(x => x.key === key);
+
     if (!k) return res.json({ success: false });
 
     if (!k.toggles) k.toggles = {};
     k.toggles[toggle] = value;
     saveDB();
+
     res.json({ success: true });
 });
 
-// 4. Lấy danh sách Key (Dùng để kiểm tra Admin)
+/* ================= GET TOGGLE ================= */
+app.get("/getToggle", (req, res) => {
+    const key = req.query.key;
+    const k = data.keys.find(x => x.key === key);
+
+    if (!k) return res.json({ success: false });
+
+    res.json({
+        success: true,
+        toggles: k.toggles || {}
+    });
+});
+
+/* ================= LIST KEYS ================= */
 app.get("/keys", (req, res) => {
     res.json(data.keys);
 });
 
-/* --- START SERVER --- */
-const PORT = process.env.PORT || 8080; 
+/* ================= START ================= */
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log("SERVER IS RUNNING ON PORT " + PORT);
 });
