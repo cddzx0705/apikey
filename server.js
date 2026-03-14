@@ -41,34 +41,41 @@ app.get("/", (req,res)=>{
 /* ================= CREATE KEY ================= */
 
 app.post("/createKey",(req,res)=>{
+  const days = Number(req.body?.days ?? 1);
+  const maxDevice = Number(req.body?.maxDevice ?? 1);
 
-  const days = parseInt(req.body.days);
-  const maxDevice = parseInt(req.body.maxDevice);
+  if(isNaN(days) || isNaN(maxDevice)){
+    return res.json({
+      success:false,
+      message:"Invalid input"
+    });
+  }
 
-  const key = "CDDZ-" + Math.random().toString(36).substring(2,10).toUpperCase();
+  const key =
+    "CDDZ-" +
+    Math.random().toString(36).substring(2,10).toUpperCase();
 
   const expire = Date.now() + (days * 86400000);
 
   data.keys.push({
-    key: key,
-    expire: expire,
-    days: days,
-    maxDevice: maxDevice,
-    devices: [],
-    toggles: {}
+    key,
+    expire,
+    days,
+    maxDevice,
+    devices:[],
+    toggles:{}
   });
 
   saveDB();
 
   res.json({
-    success: true,
-    key: key,
-    days: days,
-    maxDevice: maxDevice
+    success:true,
+    key,
+    days,
+    maxDevice
   });
 
 });
-
 
 /* ================= CHECK KEY ================= */
 
