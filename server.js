@@ -80,12 +80,12 @@ app.post("/checkKey",(req,res)=>{
     saveDB();
   }
 
-  res.json({
-    success:true,
-    expire:new Date(k.expire).toISOString(),
-    devices:k.devices.length,
-    maxDevice:k.maxDevice
-  });
+const daysLeft = Math.ceil((k.expire - Date.now()) / 86400000);
+
+res.json({
+  success:true,
+  daysLeft:daysLeft
+});
 
 });
 
