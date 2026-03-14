@@ -33,47 +33,42 @@ app.get("/", (req, res) => {
 
 /* ================= CREATE KEY ================= */
 
-app.post("/createKey", (req, res) => {
+app.post("/createKey",(req,res)=>{
 
-  console.log("BODY:", req.body);
-
-  // ép kiểu AN TOÀN tuyệt đối
   const days = parseInt(req.body.days);
   const maxDevice = parseInt(req.body.maxDevice);
 
-  if (isNaN(days) || days <= 0) {
-    return res.json({ success:false, message:"Invalid days" });
+  if(isNaN(days) || isNaN(maxDevice)){
+    return res.json({
+      success:false,
+      message:"Invalid days or maxDevice"
+    });
   }
 
-  if (isNaN(maxDevice) || maxDevice <= 0) {
-    return res.json({ success:false, message:"Invalid maxDevice" });
-  }
+  const key = "CDDZ-" + Math.random().toString(36).substring(2,10).toUpperCase();
 
-  const key =
-    "CDDZ-" +
-    Math.random().toString(36).substring(2,10).toUpperCase();
+  const expire = Date.now() + (days * 86400000);
 
-  const expire = Date.now() + days * 86400000;
+  data.keys.push({
+    key:key,
+    expire:expire,
+    maxDevice:maxDevice,
+    devices:[],
+    toggles:{}   
+  });
 
-  const newKey = {
-    key,
-    days,
-    expire,
-    maxDevice,
-    devices: [],
-    toggles: {}
-  };
-
-  data.keys.push(newKey);
   saveDB();
 
   res.json({
-    success: true,
-    key,
-    days,
-    maxDevice
+    success:true,
+    key:key,
+    days:days,
+    maxDevice:maxDevice,
+    expire:new Date(expire).toISOString()
   });
+
 });
+
 
 /* ================= CHECK KEY ================= */
 
