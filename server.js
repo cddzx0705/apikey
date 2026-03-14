@@ -30,8 +30,8 @@ app.get("/", (req,res)=>{
 
 app.post("/createKey",(req,res)=>{
 
-  const days = req.body.days || 1;
-  const maxDevice = req.body.maxDevice || 1;
+const days = Number(req.body.days) || 1;
+const maxDevice = Number(req.body.maxDevice) || 1;
 
   const key = "CDDZ-" + Math.random().toString(36).substring(2,10).toUpperCase();
 
